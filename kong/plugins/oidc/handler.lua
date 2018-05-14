@@ -40,17 +40,19 @@ function handle(oidcConfig)
     response = make_oidc(oidcConfig)
     if response and response.user then
       utils.injectUser(response.user)
+      ngx.log(ngx.INFO, "Got userinfo: " .. cjson.encode(response.user))
       ngx.req.set_header("X-Userinfo", cjson.encode(response.user))
     end
+    ngx.log(ngx.INFO, "Failed to get userinfo: " .. response)
   end
 end
 
 function make_oidc(oidcConfig)
-  ngx.log(ngx.DEBUG, "OidcHandler calling authenticate, requested path: " .. ngx.var.request_uri)
+  ngx.log(ngx.INFO, "OidcHandler calling authenticate, requested path: " .. ngx.var.request_uri)
   local res, err = require("resty.openidc").authenticate(oidcConfig)
   if err then
     if oidcConfig.recovery_page_path then
-      ngx.log(ngx.DEBUG, "Entering recovery page: " .. oidcConfig.recovery_page_path)
+      ngx.log(ngx.INFO, "Entering recovery page: " .. oidcConfig.recovery_page_path)
       ngx.redirect(oidcConfig.recovery_page_path)
     end
     utils.exit(500, err, ngx.HTTP_INTERNAL_SERVER_ERROR)
@@ -62,11 +64,13 @@ function introspect(oidcConfig)
   if utils.has_bearer_access_token() then
     local res, err = require("resty.openidc").introspect(oidcConfig)
     if err then
+      ngx.log(ngx.INFO, "OidcHandler introspect failed: " ..  " requested path: " .. ngx.var.request_uri)
       return nil
     end
-    ngx.log(ngx.DEBUG, "OidcHandler introspect succeeded, requested path: " .. ngx.var.request_uri)
+    ngx.log(ngx.INFO, "OidcHandler introspect succeeded, requested path: " .. ngx.var.request_uri)
     return res
   end
+  ngx.log(ngx.INFO, "OidcHandler introspect failed, No bearer token found: " .. ngx.var.request_uri)
   return nil
 end
 
